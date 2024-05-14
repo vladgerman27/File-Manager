@@ -2,6 +2,7 @@ import os
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog, simpledialog
 from datetime import datetime
+import shutil
 
 class FileManagerApp:
     def __init__(self, root):
@@ -9,16 +10,17 @@ class FileManagerApp:
         self.root.title("File Manager")
         
         self.current_directory = tk.StringVar()
-        self.current_directory.set(os.getcwd())  # Set current directory to initial
+        self.current_directory.set(os.getcwd())  # Set the current directory to the initial
         
         self.history_stack = []  # Stack to store visited directories
+        self.clipboard = {'action': None, 'path': None}  # Clipboard
         
         self.create_widgets()
         self.populate_file_list()
 
     def edit_path(self):
         self.entry_path.config(state="normal")  # Enable editing
-        self.entry_path.focus_set()  # Set focus on input
+        self.entry_path.focus_set()  # Set focus
         self.entry_path.select_range(0, tk.END)  # Select all text
 
     def save_path(self, event=None):
@@ -28,24 +30,24 @@ class FileManagerApp:
             self.history_stack.append(new_path)  # Add new directory to history stack
             self.populate_file_list()
         else:
-            messagebox.showerror("Error", "This path does not exist.")
+            messagebox.showerror("Error", "Path does not exist.")
         self.entry_path.config(state="readonly")  # Disable editing
 
     def create_widgets(self):
         frame_path = tk.Frame(self.root)
         frame_path.pack(fill=tk.X, pady=5)
 
-        # Input for directory path
+        # Input path to directory
         self.entry_path = ttk.Entry(frame_path, textvariable=self.current_directory, font=('Roboto', 12), state="readonly")
         self.entry_path.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
         self.entry_path.bind("<Double-1>", lambda event: self.edit_path())  # Edit on double click
-        self.entry_path.bind("<Return>", self.save_path)  # Save on Enter press
+        self.entry_path.bind("<Return>", self.save_path)  # Save on Enter
 
-        # Button to select directory
+        # Select directory button
         btn_select_dir = ttk.Button(frame_path, text="Select Folder", command=self.select_directory)
         btn_select_dir.pack(side=tk.RIGHT, padx=5)
         
-        # Input for search query and search button
+        # Search input and search button
         frame_search = tk.Frame(self.root)
         frame_search.pack(fill=tk.X, padx=5, pady=5)
         
@@ -58,11 +60,11 @@ class FileManagerApp:
         # Load icon for refresh button
         self.refresh_icon = tk.PhotoImage(file="img\\refresh.png")
 
-        # Add refresh button
+        # Refresh button
         btn_refresh = ttk.Button(frame_search, image=self.refresh_icon, command=self.populate_file_list)
         btn_refresh.grid(row=0, column=2, padx=5)
 
-        # Buttons for navigation
+        # Navigation buttons
         btn_up = ttk.Button(frame_search, text="<", command=self.go_up_directory)
         btn_up.grid(row=0, column=3)
 
@@ -70,7 +72,7 @@ class FileManagerApp:
         btn_forward.grid(row=0, column=4)
         
         # Treeview to display files and folders with icons
-        self.treeview_files = ttk.Treeview(self.root, columns=("date_modified"), selectmode="browse")
+        self.treeview_files = ttk.Treeview(self.root, columns=("date_modified"), selectmode="extended")
         self.treeview_files.heading("#0", text="Name")
         self.treeview_files.heading("date_modified", text="Date Modified")
         self.treeview_files.pack(expand=True, fill="both", padx=5, pady=5)
@@ -92,10 +94,17 @@ class FileManagerApp:
         self.context_menu.add_command(label="Open", command=self.open_file_or_directory)
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Create File", command=self.create_file)
-        self.context_menu.add_command(label="Create Folder", command=self.create_directory)
+        self.context_menu.add_command(label="Create Directory", command=self.create_directory)
         self.context_menu.add_separator()
         self.context_menu.add_command(label="Rename", command=self.rename_file)
         self.context_menu.add_command(label="Delete", command=self.delete_file)
+        self.context_menu.add_separator()
+        self.context_menu.add_command(label="Copy", command=self.copy_file)
+        self.context_menu.add_command(label="Paste", command=self.paste_file)
+        self.context_menu.add_command(label="Cut", command=self.cut_file)
+        self.treeview_files.bind("<Control-c>", self.copy_file)
+        self.treeview_files.bind("<Control-v>", self.paste_file)
+        self.treeview_files.bind("<Control-x>", self.cut_file)
         
         # Bind context menu to treeview
         self.treeview_files.bind("<Button-3>", self.show_context_menu)
@@ -151,14 +160,14 @@ class FileManagerApp:
                 messagebox.showerror("Error", f"Error creating file: {e}")
     
     def create_directory(self):
-        new_directory_name = simpledialog.askstring("Create Folder", "Enter folder name:")
+        new_directory_name = simpledialog.askstring("Create Directory", "Enter directory name:")
         if new_directory_name:
             new_directory_path = os.path.join(self.current_directory.get(), new_directory_name)
             try:
                 os.makedirs(new_directory_path)
                 self.populate_file_list()
             except Exception as e:
-                messagebox.showerror("Error", f"Error creating folder: {e}")
+                messagebox.showerror("Error", f"Error creating directory: {e}")
     
     def delete_file(self):
         selected_item = self.treeview_files.selection()
@@ -232,6 +241,43 @@ class FileManagerApp:
             return self.image_video_icon
         else:
             return self.file_icon
+    
+    def copy_file(self, event=None):
+        selected_items = self.treeview_files.selection()
+        if selected_items:
+            selected_files = [self.treeview_files.item(item)["text"] for item in selected_items]
+            self.clipboard['action'] = 'copy'
+            self.clipboard['path'] = [os.path.join(self.current_directory.get(), file) for file in selected_files]
+    
+    def paste_file(self, event=None):
+        if self.clipboard['action'] == 'copy':
+            for file_path in self.clipboard['path']:
+                try:
+                    if os.path.isdir(file_path):
+                        shutil.copytree(file_path, os.path.join(self.current_directory.get(), os.path.basename(file_path)))
+                    else:
+                        shutil.copy2(file_path, self.current_directory.get())
+                except Exception as e:
+                    messagebox.showerror("Error", f"Error copying file: {e}")
+            self.populate_file_list()
+        elif self.clipboard['action'] == 'cut':
+            for file_path in self.clipboard['path']:
+                try:
+                    if os.path.isdir(file_path):
+                        shutil.move(file_path, os.path.join(self.current_directory.get(), os.path.basename(file_path)))
+                    else:
+                        shutil.move(file_path, self.current_directory.get())
+                except Exception as e:
+                    messagebox.showerror("Error", f"Error cutting file: {e}")
+            self.populate_file_list()
+
+    
+    def cut_file(self, event=None):
+        selected_items = self.treeview_files.selection()
+        if selected_items:
+            selected_files = [self.treeview_files.item(item)["text"] for item in selected_items]
+            self.clipboard['action'] = 'cut'
+            self.clipboard['path'] = [os.path.join(self.current_directory.get(), file) for file in selected_files]
 
 if __name__ == "__main__":
     root = tk.Tk()
