@@ -6,98 +6,98 @@ from datetime import datetime
 class FileManagerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Файловый менеджер")
+        self.root.title("File Manager")
         
         self.current_directory = tk.StringVar()
-        self.current_directory.set(os.getcwd())  # Устанавливаем текущий каталог в начальный
+        self.current_directory.set(os.getcwd())  # Set current directory to initial
         
-        self.history_stack = []  # Стек для хранения посещенных каталогов
+        self.history_stack = []  # Stack to store visited directories
         
         self.create_widgets()
         self.populate_file_list()
 
     def edit_path(self):
-        self.entry_path.config(state="normal")  # Разрешить редактирование
-        self.entry_path.focus_set()  # Установить фокус ввода
-        self.entry_path.select_range(0, tk.END)  # Выделить весь текст
+        self.entry_path.config(state="normal")  # Enable editing
+        self.entry_path.focus_set()  # Set focus on input
+        self.entry_path.select_range(0, tk.END)  # Select all text
 
     def save_path(self, event=None):
         new_path = self.entry_path.get()
         if os.path.exists(new_path):
             self.current_directory.set(new_path)
-            self.history_stack.append(new_path)  # Добавляем новый каталог в стек истории
+            self.history_stack.append(new_path)  # Add new directory to history stack
             self.populate_file_list()
         else:
-            messagebox.showerror("Ошибка", "Данного пути не существует.")
-        self.entry_path.config(state="readonly")  # Запрещаем редактирование
+            messagebox.showerror("Error", "This path does not exist.")
+        self.entry_path.config(state="readonly")  # Disable editing
 
     def create_widgets(self):
         frame_path = tk.Frame(self.root)
         frame_path.pack(fill=tk.X, pady=5)
 
-        # Ввод пути к каталогу
+        # Input for directory path
         self.entry_path = ttk.Entry(frame_path, textvariable=self.current_directory, font=('Roboto', 12), state="readonly")
         self.entry_path.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
-        self.entry_path.bind("<Double-1>", lambda event: self.edit_path())  # Редактирование при двойном клике
-        self.entry_path.bind("<Return>", self.save_path)  # Сохранение при нажатии Enter
+        self.entry_path.bind("<Double-1>", lambda event: self.edit_path())  # Edit on double click
+        self.entry_path.bind("<Return>", self.save_path)  # Save on Enter press
 
-        # Кнопка выбора каталога
-        btn_select_dir = ttk.Button(frame_path, text="Выберите папку", command=self.select_directory)
+        # Button to select directory
+        btn_select_dir = ttk.Button(frame_path, text="Select Folder", command=self.select_directory)
         btn_select_dir.pack(side=tk.RIGHT, padx=5)
         
-        # Ввод поискового запроса и кнопка поиска
+        # Input for search query and search button
         frame_search = tk.Frame(self.root)
         frame_search.pack(fill=tk.X, padx=5, pady=5)
         
         self.entry_search = ttk.Entry(frame_search, width=50, font=('Roboto', 10))
         self.entry_search.grid(row=0, column=0)
         
-        btn_search = ttk.Button(frame_search, text="Поиск", command=self.search_files)
+        btn_search = ttk.Button(frame_search, text="Search", command=self.search_files)
         btn_search.grid(row=0, column=1, padx=5)
         
-        # Загрузка иконки для кнопки "Обновить"
+        # Load icon for refresh button
         self.refresh_icon = tk.PhotoImage(file="img\\refresh.png")
 
-        # Добавляем кнопку обновления окна
+        # Add refresh button
         btn_refresh = ttk.Button(frame_search, image=self.refresh_icon, command=self.populate_file_list)
         btn_refresh.grid(row=0, column=2, padx=5)
 
-        # Кнопки для навигации вверх и вниз
+        # Buttons for navigation
         btn_up = ttk.Button(frame_search, text="<", command=self.go_up_directory)
         btn_up.grid(row=0, column=3)
 
         btn_forward = ttk.Button(frame_search, text=">", command=self.go_forward_directory)
         btn_forward.grid(row=0, column=4)
         
-        # Древовидный вид для отображения файлов и папок с иконками
+        # Treeview to display files and folders with icons
         self.treeview_files = ttk.Treeview(self.root, columns=("date_modified"), selectmode="browse")
-        self.treeview_files.heading("#0", text="Имя")
-        self.treeview_files.heading("date_modified", text="Дата изменения")
+        self.treeview_files.heading("#0", text="Name")
+        self.treeview_files.heading("date_modified", text="Date Modified")
         self.treeview_files.pack(expand=True, fill="both", padx=5, pady=5)
         
-        # Полоса прокрутки для древовидного вида
+        # Scrollbar for treeview
         scrollbar_treeview = ttk.Scrollbar(self.root, orient="vertical", command=self.treeview_files.yview)
         scrollbar_treeview.pack(side=tk.RIGHT, fill="y")
         self.treeview_files.configure(yscrollcommand=scrollbar_treeview.set)
         
-        # Загрузка иконок папки и файла
+        # Load folder and file icons
         self.folder_icon = tk.PhotoImage(file="img\\folder.png")
         self.file_icon = tk.PhotoImage(file="img\\file.png")
         
-        # Привязываем событие двойного щелчка для открытия файла или каталога
+        # Bind double click event to open file or directory
         self.treeview_files.bind("<Double-1>", self.open_file_or_directory)
         
-        # Создаем контекстное меню
+        # Create context menu
         self.context_menu = tk.Menu(self.root, tearoff=0)
-        self.context_menu.add_command(label="Открыть", command=self.open_file_or_directory)
+        self.context_menu.add_command(label="Open", command=self.open_file_or_directory)
         self.context_menu.add_separator()
-        self.context_menu.add_command(label="Создать файл", command=self.create_file)
-        self.context_menu.add_command(label="Создать папку", command=self.create_directory)
+        self.context_menu.add_command(label="Create File", command=self.create_file)
+        self.context_menu.add_command(label="Create Folder", command=self.create_directory)
         self.context_menu.add_separator()
-        self.context_menu.add_command(label="Переименовать", command=self.rename_file)
-        self.context_menu.add_command(label="Удалить", command=self.delete_file)
+        self.context_menu.add_command(label="Rename", command=self.rename_file)
+        self.context_menu.add_command(label="Delete", command=self.delete_file)
         
-        # Привязываем контекстное меню к древовидному виду
+        # Bind context menu to treeview
         self.treeview_files.bind("<Button-3>", self.show_context_menu)
 
     def show_context_menu(self, event):
@@ -107,12 +107,12 @@ class FileManagerApp:
         selected_directory = filedialog.askdirectory()
         if selected_directory:
             self.current_directory.set(selected_directory)
-            self.history_stack.append(selected_directory)  # Добавляем новый каталог в стек истории
+            self.history_stack.append(selected_directory)  # Add new directory to history stack
             self.populate_file_list()
     
     def populate_file_list(self):
-        self.treeview_files.delete(*self.treeview_files.get_children())  # Очищаем существующие элементы
-        parent_node = self.treeview_files.insert("", "end", text="..", image=self.folder_icon, open=True)  # Добавляем ".." для перехода вверх
+        self.treeview_files.delete(*self.treeview_files.get_children())  # Clear existing items
+        parent_node = self.treeview_files.insert("", "end", text="..", image=self.folder_icon, open=True)  # Add ".." to go up
         for file in os.listdir(self.current_directory.get()):
             file_path = os.path.join(self.current_directory.get(), file)
             if os.path.isdir(file_path):
@@ -134,31 +134,31 @@ class FileManagerApp:
                 path_to_item = os.path.join(self.current_directory.get(), file_name)
                 if os.path.isdir(path_to_item):
                     self.current_directory.set(path_to_item)
-                    self.history_stack.append(path_to_item)  # Добавляем новый каталог в стек истории
+                    self.history_stack.append(path_to_item)  # Add new directory to history stack
                     self.populate_file_list()
                 else:
-                    os.system(f'start "" "{path_to_item}"')  # Открываем файл с помощью приложения по умолчанию
+                    os.system(f'start "" "{path_to_item}"')  # Open file with default application
     
     def create_file(self):
-        new_file_name = simpledialog.askstring("Создать файл", "Введите имя и тип файла")
+        new_file_name = simpledialog.askstring("Create File", "Enter file name and type")
         if new_file_name:
             new_file_path = os.path.join(self.current_directory.get(), new_file_name)
             try:
                 with open(new_file_path, 'w') as new_file:
-                    pass  # Создаем пустой файл
+                    pass  # Create empty file
                 self.populate_file_list()
             except Exception as e:
-                messagebox.showerror("Ошибка", f"Ошибка при создании файла: {e}")
+                messagebox.showerror("Error", f"Error creating file: {e}")
     
     def create_directory(self):
-        new_directory_name = simpledialog.askstring("Создать папку", "Введите название папки:")
+        new_directory_name = simpledialog.askstring("Create Folder", "Enter folder name:")
         if new_directory_name:
             new_directory_path = os.path.join(self.current_directory.get(), new_directory_name)
             try:
                 os.makedirs(new_directory_path)
                 self.populate_file_list()
             except Exception as e:
-                messagebox.showerror("Ошибка", f"Ошибка при создании папки: {e}")
+                messagebox.showerror("Error", f"Error creating folder: {e}")
     
     def delete_file(self):
         selected_item = self.treeview_files.selection()
@@ -173,14 +173,14 @@ class FileManagerApp:
                     os.remove(path_to_item)
                 self.populate_file_list()
             except Exception as e:
-                messagebox.showerror("Ошибка", f"Ошибка при удалении {file_name}: {e}")
+                messagebox.showerror("Error", f"Error deleting {file_name}: {e}")
     
     def rename_file(self):
         selected_item = self.treeview_files.selection()
         if selected_item:
             selected_item = self.treeview_files.item(selected_item)
             file_name = selected_item["text"]
-            new_name = simpledialog.askstring("Переименовать файл", f"Введите новое название файла {file_name}:")
+            new_name = simpledialog.askstring("Rename File", f"Enter new name for file {file_name}:")
             if new_name:
                 old_path = os.path.join(self.current_directory.get(), file_name)
                 new_path = os.path.join(self.current_directory.get(), new_name)
@@ -188,14 +188,14 @@ class FileManagerApp:
                     os.rename(old_path, new_path)
                     self.populate_file_list()
                 except Exception as e:
-                    messagebox.showerror("Ошибка", f"Ошибка при переименовании {file_name}: {e}")
+                    messagebox.showerror("Error", f"Error renaming {file_name}: {e}")
     
     def go_up_directory(self):
         current_dir = self.current_directory.get()
         parent_dir = os.path.dirname(current_dir)
         if parent_dir:
             self.current_directory.set(parent_dir)
-            self.history_stack.append(current_dir)  # Добавляем текущий каталог в стек истории
+            self.history_stack.append(current_dir)  # Add current directory to history stack
             self.populate_file_list()
 
     def go_forward_directory(self):
@@ -209,7 +209,7 @@ class FileManagerApp:
         if search_term:
             found_files = [file for file in os.listdir(self.current_directory.get()) if search_term.lower() in file.lower()]
             self.treeview_files.delete(*self.treeview_files.get_children())
-            parent_node = self.treeview_files.insert("", "end", text="..", image=self.folder_icon)  # Добавляем ".." для перехода вверх
+            parent_node = self.treeview_files.insert("", "end", text="..", image=self.folder_icon)  # Add ".." to go up
             for file in found_files:
                 file_path = os.path.join(self.current_directory.get(), file)
                 if os.path.isdir(file_path):
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = FileManagerApp(root)
     
-    # Загрузка иконок для различных типов файлов
+    # Load icons for different file types
     app.image_photo_icon = tk.PhotoImage(file="img\\img.png")
     app.image_browser_icon = tk.PhotoImage(file="img\\web.png")
     app.image_music_icon = tk.PhotoImage(file="img\\song.png")
